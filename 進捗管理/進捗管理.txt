@@ -17,3 +17,32 @@
 - ユーザーの要望に基づき、`ナインタイル_3.py`を拡張しました。
 - 2つのお題を画面の左右に同時に表示し、それぞれ独立して判定できる新しいアプリケーション`ナインタイル_4.py`を作成しました。
 - 新規作成したファイルは `ナインタイルpythonista` フォルダに保存済みです。
+
+## 5. Web版フロントエンドの雛形構築（React + TypeScript + Vite）2025/08/10/12:08
+- 既存リポジトリ直下に `web/` を作成（下位での git 初期化は行わず）。
+- 依存をインストールし、Vite のテンプレートをベースに雛形を構築。
+- アセットを配置:
+  - 画像（指定の6種）: `web/public/assets/{block,cookie,lime,maru,sakura,hanabi}.png`
+  - 効果音: `web/public/assets/{correct_sound.wav, incorrect_sound_alt.wav, incorrect_sound_soft.wav}`
+  - パターンCSV: `web/public/data/512_Patterns_of_Nine_Tile.csv`
+- ロジック移植（Pythonista版 `ナインタイル_3.py` を踏襲）:
+  - `web/src/logic/constants.ts`（マーク定義、暖色集合、クロス関係、画像マッピング）
+  - `web/src/logic/patterns.ts`（CSVロード、ビット→マーク展開、同一マーク3枚以上の行を除外）
+  - `web/src/logic/judge.ts`（3枚選択時の判定：クロス禁止・3種異なる・暖/寒必要枚数）
+  - `web/src/logic/timer.ts`（タイマー・1秒毎ビープ/3秒毎ロングビープ、初回タップでAudio解放）
+- UI 実装:
+  - `web/src/components/Tile.tsx` + `tile.css`（画像＋選択オーバーレイ）
+  - `web/src/App.tsx`（状態機械：`IDLE`→`RUNNING`→`PAUSED`、30トライアル、平均表示）
+  - `web/src/index.css`（レイアウト調整）
+- ビルドを実施し成功（`web/dist` 生成済み）。
+
+## 6. 利用・配布方法（現状の運用）
+- ローカル実行（開発サーバ）:
+  1) `cd web`
+  2) `npm install`
+  3) `npm run dev`（同一LAN公開は `npm run dev -- --host`）
+- ビルド確認（本番想定）:
+  1) `npm run build`
+  2) `npm run preview -- --host` → 表示URLを共有
+- Git経由での共有: リポジトリを clone 後、`web/` で上記コマンドを実行すれば他者環境でも動作。
+- パブリック公開の候補（未設定）: Vercel / Netlify（Base: `web`, Build: `npm run build`, Out: `dist`）。
