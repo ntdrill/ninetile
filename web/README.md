@@ -17,7 +17,7 @@ npm run dev
 ```bash
 npm run build
 npm run preview
-
+```
 
 ## WSLでの利用
 Windows上のWSL2でも問題なく動作します。ブラウザはWindows側で開いてください。
@@ -44,14 +44,6 @@ npm run dev -- --host
 - つながらない場合: `npm run dev -- --host 0.0.0.0` を試す、または `ip addr` でWSLのIPを確認し `http://<WSL_IP>:5173` にアクセス
 - パフォーマンス: `/mnt/*` 上のプロジェクトはI/Oが遅くなることがあります。必要に応じてWSLのホーム配下に複製して作業してください。
 
-```
-
-## 遊び方（操作）
-- START: 計測開始。9枚から3枚を選択して答えるとクロスエッジ判定が行われ、NEXT待機に移行します。
-- STOP: 通常通りナインタイルのタイムを測りたい場合、手元のナインタイルを解いてSTOPします。
-- NEXT: 次の問題へ進みます。
-- 30 トライアル終了後、平均タイムが表示されます。
-
 ## 遊び方
 
 ### 1) ナインタイルのタイマーとして使う（実物のパズルで計測）
@@ -60,7 +52,7 @@ npm run dev -- --host
 - できたら STOP を押して計測終了（タイムが記録されます）
 - NEXT を押して次の問題へ（合計 30 トライアルで平均が算出されます）
 
-ポイント: 画面の9枚はあくまでダミー表示です。選択操作は不要です（STOPで記録）。
+ポイント: 画面の9枚はお題表示です（物理パズルの計測用）。画面内での入れ替えパズル機能は未実装です。
 
 ### 2) クロスエッジ判定の練習として使う（画面内で3枚選択）
 - START を押す
@@ -89,7 +81,13 @@ npm run dev -- --host
 
 ## データとアセット
 - パターンCSV: `public/data/512_Patterns_of_Nine_Tile.csv`
-- 画像: `public/assets/{maru,cookie,sakura,lime,hanabi,block}.png`
+- 画像（`public/assets/`）
+  - Maru: `maru.png`
+  - Cookie: `cookie.png`
+  - Sakura: `sakura.png`
+  - Lime: `lime.png`
+  - Hanabana: `hanabi.png`
+  - Brocco: `block.png`（ファイル名は block ですが、マーク名は Brocco）
 - 効果音: `public/assets/{correct_sound.wav, incorrect_sound_alt.wav, incorrect_sound_soft.wav}`
 
 ## 主要ファイル
