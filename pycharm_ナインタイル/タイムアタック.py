@@ -14,7 +14,7 @@ matplotlib.use('Tkagg')
 matplotlib.rcParams['font.family'] = 'MS Gothic' # 日本語フォント設定
 
 # --- CSVファイルを読み込み、データを整形 ---
-file_path = "512_Patterns_of_Nine_Tile.csv"
+file_path = "data/512_Patterns_of_Nine_Tile.csv"
 df = pd.read_csv(file_path, header=None)
 df_cleaned = df.fillna(0).astype(int)
 
@@ -47,12 +47,12 @@ reverse_sorted_mapping = {tuple(v): k for k, v in sorted_bit_mapping_romaji.item
 
 # 画像ファイルパス
 image_mapping = {
-    "Brocco": "ブロック.png",
-    "Cookie": "クッキー.png",
-    "Maru": "丸.png",
-    "Lime": "ライム.png",
-    "Sakura": "サクラ.png",
-    "Hanabana": "花火.png",
+    "Brocco": "assets/ブロック.png",
+    "Cookie": "assets/クッキー.png",
+    "Maru": "assets/丸.png",
+    "Lime": "assets/ライム.png",
+    "Sakura": "assets/サクラ.png",
+    "Hanabana": "assets/花火.png",
 }
 
 # 暖色マークの定義 (ナインタイル理論より)
@@ -92,6 +92,8 @@ trial_times = [] # 各試行のタイムを記録するリスト
 # タイマー & 音用
 start_time = time.time()
 last_second = -1  # 前回ビープした秒
+timer_running = False # タイマー実行状態フラグ
+current_elapsed_time = 0 # 一時停止/正解時の経過時間
 
 # --- ログ表示関連 ---
 MAX_LOG_LINES = 3 # ログ表示の最大行数
@@ -104,12 +106,13 @@ clickable_rects = [] # クリック判定用の透明な矩形
 selection_overlays = [] # 選択状態を示す半透明の黒い矩形
 tile_data = [] # 各マスの情報 (mark, key, is_warm)
 judging = False # 判定中フラグ
+paused = False # 一時停止フラグ
 
 # --- 効果音ファイルパス ---
-# 絶対パスを使用。環境に合わせて変更してください。
-correct_sound_path = r"D:\pythonProject7\ゲーム\ナインタイル\correct_sound.wav"
-incorrect_sound_path = r"D:\pythonProject7\ゲーム\ナインタイル\incorrect_sound_soft.wav"
-incorrect_alt_sound_path = r"D:\pythonProject7\ゲーム\ナインタイル\incorrect_sound_alt.wav" # コンフリクト用効果音
+# 相対パスを使用
+correct_sound_path = "assets/correct_sound.wav"
+incorrect_sound_path = "assets/incorrect_sound_soft.wav"
+incorrect_alt_sound_path = "assets/incorrect_sound_alt.wav" # コンフリクト用効果音
 
 # 図のセットアップ
 fig, ax = plt.subplots(figsize=(2.5,2.5))
@@ -147,7 +150,7 @@ def draw_pattern():
     overlay_texts.clear()
     if feedback_text: # feedback_textがNoneでないことを確認
         feedback_text.set_text("")
-    reset_selection() # 選択状態もリセット
+    reset_selection() # この中で judging = False になる
     clickable_rects.clear()
     selection_overlays.clear()
     tile_data.clear()
@@ -231,7 +234,7 @@ def draw_pattern():
 
 def update_timer():
     """タイマー表示を更新し、ビープ音を鳴らす"""
-    global last_second
+    global last_second, timer_running
     if not timer_running or judging: # タイマーが停止しているか、判定中は更新しない
         return
     elapsed = time.time() - start_time
@@ -260,19 +263,95 @@ timer = fig.canvas.new_timer(interval=50)
 timer.add_callback(update_timer)
 
 def update_pattern_and_reset(event):
-    """新しいパターンを描画し、タイマー開始時刻をリセット"""
-    global start_time, feedback_text
-    start_time = time.time() # 次の試行の開始時刻をリセット
-    if feedback_text:
+    """新しいパターンを描画し、関連する状態をリセットする"""
+    global overlay_texts, current_warm_color_count, feedback_text
+    global clickable_rects, selection_overlays, tile_data
+    global judging
+    # --- リセット処理 ---
+    overlay_texts.clear()
+    if feedback_text: # feedback_textがNoneでないことを確認
         feedback_text.set_text("")
-    draw_pattern() # これで選択状態などもリセットされる
+    reset_selection() # この中で judging = False になる
+    clickable_rects.clear()
+    selection_overlays.clear()
+    tile_data.clear()
+    ax.clear(); ax.axis('off')
+    # --------------------
 
-# ボタン関連のコードは削除
-# ax_button = plt.axes([0.4, 0.01, 0.2, 0.075])
-# button = Button(ax_button, "次のお題")
-# button.on_clicked(on_button_click)
+    # ランダム抽出
+    pattern = filtered_patterns.sample(n=1).to_numpy()[0]
+    tiles = []
+    warm_count = 0
+    for i, bit in enumerate(pattern):
+        pair = bit_mapping_romaji[i+1]
+        mark = pair[bit]
+        is_warm = mark in warm_colors
+        if is_warm:
+            warm_count += 1
+        key = reverse_sorted_mapping[tuple(pair)]
+        tiles.append({"mark": mark, "key": key, "is_warm": is_warm, "original_index": i}) # 元のインデックスも保持
 
-timer_running = False # 最初はタイマーを停止状態に
+    # 暖色マークの数を保存 (3-6の範囲のはず)
+    if 3 <= warm_count <= 6:
+         current_warm_color_count = warm_count
+    else:
+         # 想定外のケース（デバッグ用）
+         print(f"警告: 暖色マーク数が想定外です ({warm_count}枚)")
+         add_log_message(f"警告: 暖色マーク数 {warm_count}") # ログに追加
+         current_warm_color_count = -1 # 不正な値
+
+    random.shuffle(tiles) # シャッフルして配置
+    # 背景
+    ax.imshow(np.ones((3,3)), cmap="gray", alpha=0.1, extent=(-0.5,2.5,2.5,-0.5))
+    # タイル描画とクリック用要素の準備
+    for r in range(3):
+        for c in range(3):
+            idx = r * 3 + c # グリッド上のインデックス (0-8)
+            tile_info = tiles[idx]
+            tile_data.append(tile_info) # マス情報を保存 (シャッフル後の順序で)
+
+            mark, key = tile_info["mark"], tile_info["key"]
+            path = image_mapping[mark]
+            if path not in image_cache:
+                try:
+                    image_cache[path] = plt.imread(path)
+                except FileNotFoundError:
+                    print(f"エラー: 画像ファイルが見つかりません: {path}")
+                    add_log_message(f"エラー: 画像なし {path}") # ログに追加
+                    # 代替表示などを検討
+                    image_cache[path] = np.zeros((10, 10, 4)) # ダミー画像
+
+            img = image_cache[path]
+            im = OffsetImage(img, zoom=0.05)
+            ax.add_artist(AnnotationBbox(im, (c,r), frameon=False, zorder=1)) # 画像を前面に
+
+            # キー表示 (確認モード用)
+            txt = ax.text(c, r, key, fontsize=12, color='white',
+                          ha='center', va='center', weight='bold',
+                          visible=config['confirm_mode'], zorder=3) # テキストは最前面に
+            overlay_texts.append(txt)
+
+            # クリック用透明矩形
+            rect = patches.Rectangle((c-0.5, r-0.5), 1, 1, linewidth=0, facecolor='none', picker=True, zorder=2) # クリック判定用
+            rect.grid_idx = idx # グリッドインデックス情報を付与
+            ax.add_patch(rect)
+            clickable_rects.append(rect)
+
+            # 選択状態オーバーレイ（最初は非表示）
+            sel_overlay = patches.Rectangle((c-0.5, r-0.5), 1, 1, linewidth=0, facecolor='black', alpha=0.3, visible=False, zorder=2) # 画像の上に表示
+            ax.add_patch(sel_overlay)
+            selection_overlays.append(sel_overlay)
+
+    # --- ★★★ お題の内容を標準出力 ★★★ ---
+    print("--- 新しいお題 ---")
+    grid_marks = [tile_data[i*3 + j]["mark"] for i in range(3) for j in range(3)]
+    for i in range(3):
+        print(f"[{grid_marks[i*3]:<8} {grid_marks[i*3+1]:<8} {grid_marks[i*3+2]:<8}]")
+    print(f"暖色: {current_warm_color_count}枚") # 暖色の総数も表示
+    print("---------------")
+    # -------------------------------------
+
+    fig.canvas.draw_idle()
 
 def check_answer():
     """3枚選択された時点で呼び出され、正誤判定とフィードバックを行う"""
@@ -375,64 +454,92 @@ def check_answer():
         print(f"効果音再生エラー: {e}")
         add_log_message(f"効果音再生エラー: {e}") # ログに追加
 
-    # 正誤判定後、すぐに次の問題へ移行
-    proceed_to_next_pattern()
+    # 正誤判定後、タイマーが動いていればタイムを記録し、すぐに次の問題へ移行
+    if timer_running: # 自動進行の場合
+        elapsed_at_answer = time.time() - start_time
+        record_and_display_trial_time(elapsed_at_answer) # タイムを記録・表示
+        proceed_to_next_pattern(manual_restart=False) # 記録後に次の問題へ
+    else: # タイマーが止まっている場合 (手動進行など)
+        proceed_to_next_pattern(manual_restart=True) # そのまま次の問題へ
 
-def proceed_to_next_pattern():
-    """タイム記録（タイマー作動中の場合）と次のパターンへの移行処理"""
-    global timer_running, start_time, trial_count, trial_times, feedback_text, judging
+def record_and_display_trial_time(elapsed_time):
+    """タイムを記録し、フィードバックを表示する。30回終了時の処理も行う。"""
+    global trial_count, trial_times, feedback_text
 
-    was_timer_running = timer_running # 移行処理前のタイマー状態を保持
+    trial_times.append(elapsed_time)
+    trial_count += 1
 
-    if was_timer_running:
-        elapsed_at_proceed = time.time() # 移行時の時刻
-        timer.stop()
-        timer_running = False
-        print("自動進行によりタイム記録")
-        # add_log_message("タイム記録") # proceed_to_next_pattern で記録される
+    time_feedback_msg = f"記録: {elapsed_time:.2f}秒 ({trial_count}/30)"
+    add_log_message(time_feedback_msg)
+    print(f"タイム記録: {elapsed_time:.2f}秒") # 標準出力にも表示
+    print(f"試行回数: {trial_count}/30")
 
-        trial_time = elapsed_at_proceed - start_time # タイムを計算
-        trial_times.append(trial_time)
-        trial_count += 1
+    if feedback_text:
+        feedback_text.set_text(time_feedback_msg)
+        feedback_text.set_color('blue') # 記録時は青色で表示
 
-        # タイムと試行回数をフィードバック表示 (一時的)
-        time_feedback_msg = f"記録: {trial_time:.2f}秒 ({trial_count}/30)"
+    # 30回終了時の処理
+    if trial_count >= 30:
+        average_time = sum(trial_times) / len(trial_times) if trial_times else 0
+        print(f"\n--- 30回終了 ---")
+        add_log_message("--- 30回終了 ---")
+        print(f"平均タイム: {average_time:.2f} 秒")
+        add_log_message(f"平均: {average_time:.2f} 秒")
         if feedback_text:
-            feedback_text.set_text(time_feedback_msg)
-            feedback_text.set_color('blue') # タイム記録表示は青色に
-        add_log_message(time_feedback_msg) # ログにも記録
-        # fig.canvas.draw_idle() # update_log_display内で呼ばれる
+            feedback_text.set_text(f"終了 平均: {average_time:.2f} 秒")
+            feedback_text.set_color('purple')
 
-        print(f"タイム記録: {trial_time:.2f}秒")
-        print(f"試行回数: {trial_count}/30")
+        # 少し待ってからウィンドウを閉じる
+        timer_close = fig.canvas.new_timer(interval=2500, callbacks=[(plt.close, [fig], {})])
+        timer_close.single_shot = True
+        timer_close.start()
+        # judging = False # proceed_to_next_pattern で制御
+        # paused = False # proceed_to_next_pattern で制御
+        fig.canvas.draw_idle()
+        return True # 終了したことを示す
+    return False # まだ続くことを示す
 
-        # 30回に達したら終了処理
-        if trial_count >= 30:
-            average_time = sum(trial_times) / len(trial_times) if trial_times else 0
-            print(f"\n--- 30回終了 ---")
-            add_log_message("--- 30回終了 ---")
-            print(f"平均タイム: {average_time:.2f} 秒")
-            add_log_message(f"平均: {average_time:.2f} 秒")
-            # 少し待ってからウィンドウを閉じる（最後のフィードバックが見えるように）
-            timer_close = fig.canvas.new_timer(interval=1500, callbacks=[(plt.close, [fig], {})])
-            timer_close.single_shot = True
-            timer_close.start()
-            return # 移行処理を終了
+def proceed_to_next_pattern(manual_restart=False):
+    """次のパターンへの移行処理 (タイム記録はrecord_and_display_trial_timeで行う)"""
+    global timer_running, start_time, judging, paused, feedback_text
 
-    # --- 30回未満、またはタイマーが作動していなかった場合 --- 
-    # 次の問題へ (update_pattern_and_reset内で judging=False になる)
+    # manual_restart フラグは、一時停止からの再開か、自動進行かを示す
+    # タイム記録は呼び出し元 (check_answer や on_key_press) で行う
+
     print("次の問題へ...")
-    add_log_message("次の問題へ...")
-    update_pattern_and_reset(None) # 次の問題を描画
+    if manual_restart:
+        add_log_message("次の問題へ (Enter/再開)")
+    else: # 自動進行時
+        add_log_message("次の問題へ (自動)")
 
-    # もし移行前にタイマーが作動していたなら、新しい問題のためにタイマーを再開
-    if was_timer_running and trial_count < 30: # 30回到達チェックを再度行う
-        start_time = time.time() # 新しい問題の開始時刻
-        timer.start()
-        timer_running = True
-        # feedback_text は update_pattern_and_reset でクリアされる
-    # else: タイマーが作動していなかった場合、停止したまま
+    # judging フラグは update_pattern_and_reset 内で False になる
+    update_pattern_and_reset(None) # 次の問題を描画 (ここで judging=False になる)
 
+    # タイマーを再開 (30回未満の場合)
+    # manual_restart の場合は、元々タイマーが動いていた場合のみ再開
+    # 自動進行の場合は、常に再開 (check_answer で止めているため)
+    if trial_count < 30:
+        if manual_restart: # 手動再開の場合
+            if paused: # 一時停止状態からなら再開
+                start_time = time.time() # 新しい問題の開始時刻 (一時停止時間を除く)
+                timer.start()
+                timer_running = True
+                if feedback_text: feedback_text.set_text("") # 再開時はメッセージクリア
+        else: # 自動進行の場合
+            start_time = time.time() # 新しい問題の開始時刻
+            timer.start()
+            timer_running = True
+            if feedback_text: feedback_text.set_text("") # メッセージクリア
+    else: # 30回終了時はタイマーを再開しない
+        timer_running = False
+        if timer.is_running(): # timerオブジェクトが動いていれば止める
+            timer.stop()
+
+
+    paused = False # 次の問題に進んだら paused 状態は解除
+    # judging は update_pattern_and_reset で False になっているはず
+
+    fig.canvas.draw_idle() # 最後にまとめて描画更新
 
 def on_click(event):
     """マウスクリックイベント処理"""
@@ -469,38 +576,63 @@ def on_click(event):
 
 def on_key_press(event):
     """キーボードイベント処理"""
-    # print(f"Key pressed: {event.key}") # デバッグ用プリント -> ログが冗長になるためコメントアウト推奨
-    # add_log_message(f"キー: {event.key}") # 必要ならコメント解除
-    global timer_running, start_time, config, trial_count, trial_times, feedback_text, judging
+    global timer_running, start_time, config, trial_count, trial_times, feedback_text, judging, paused
 
-    if judging: return # 判定中はキー操作を無視
+    # 判定中はキー操作を基本的に無視
+    if judging:
+        return
+
+    # エンターキーの処理 (判定中でない場合のみ)
+    if event.key in ['enter', 'return']:
+        if timer_running and not paused: # タイマー動作中 & 非一時停止 -> 一時停止へ
+            timer.stop()
+            # timer_running = False # ここではまだ False にしない (記録のため)
+            paused = True
+            elapsed_at_pause = time.time() - start_time
+            # タイムを記録・表示
+            finished = record_and_display_trial_time(elapsed_at_pause)
+            timer_running = False # 記録後に False にする
+
+            if not finished: # 30回未満の場合のみ一時停止メッセージ
+                if feedback_text:
+                    feedback_text.set_text("一時停止中 (Enterで次へ)")
+                    feedback_text.set_color('orange')
+                add_log_message("一時停止 (Enter)")
+            # 30回終了時は record_and_display_trial_time 内でメッセージ表示と終了処理
+            fig.canvas.draw_idle()
+
+        elif paused: # 一時停止中 -> 次の問題へ
+            # 30回未満の場合のみ次の問題へ
+            if trial_count < 30:
+                 proceed_to_next_pattern(manual_restart=True)
+            # 30回終了時は何もしない (record_and_display_trial_time で閉じる処理が動いているはず)
+
+        # else: タイマー停止中 or 非一時停止状態 でエンターが押されても何もしない
+        return # エンターキー処理後は他のキー処理を行わない
+
+    # --- エンター以外のキー処理 (一時停止中ではない場合) ---
+    if paused:
+        return # 一時停止中はエンター以外のキーを無視
 
     if event.key == 'c':
         config['confirm_mode'] = not config['confirm_mode']
         for txt in overlay_texts:
             txt.set_visible(config['confirm_mode'])
-        # fig.canvas.draw_idle() # update_log_display内で呼ばれる
         mode_msg = f"確認モード: {'ON' if config['confirm_mode'] else 'OFF'}"
-        print(f"確認モード：{'ON' if config['confirm_mode'] else 'OFF'}")
+        print(mode_msg)
         add_log_message(mode_msg)
+        fig.canvas.draw_idle() # Cキーでも描画更新が必要
 
     elif event.key == ' ':
         # スペースキー: 最初の1回だけタイマーを開始
-        if trial_count == 0 and not timer_running:
+        if trial_count == 0 and not timer_running: # paused でないことは上で確認済み
             print("スペースキーによりタイマースタート！")
             add_log_message("タイマースタート!")
             start_time = time.time() # 開始時刻を記録
             timer.start()
             timer_running = True
             if feedback_text: feedback_text.set_text("") # メッセージクリア
-            fig.canvas.draw_idle() # ログ以外も更新するので呼ぶ
-
-    elif event.key in ['enter', 'return']:
-        # Enterキー: タイマー停止 & タイム記録 & 次の問題へ (手動操作用)
-        # 自動進行があるため、基本的には不要だが、タイマー作動中に手動で進めたい場合のために残す
-        if timer_running: # タイマー動作中のみ処理
-            proceed_to_next_pattern() # 移行処理を直接呼び出す
-        # else: # タイマー停止中にEnterが押されても何もしない
+            fig.canvas.draw_idle()
 
 # イベント接続
 fig.canvas.mpl_connect('key_press_event', on_key_press)
@@ -511,4 +643,6 @@ draw_pattern()
 add_log_message("ゲーム開始") # 初期メッセージ
 # timer.start() # 自動開始はしない
 
-plt.show() 
+plt.show()
+
+

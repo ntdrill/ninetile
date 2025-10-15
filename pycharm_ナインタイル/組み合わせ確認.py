@@ -5,12 +5,12 @@ from PIL import Image, ImageTk, ImageDraw, ImageColor
 
 # 画像ファイルのパス（環境に合わせて調整してください）
 image_paths = {
-    "クッキー": "72E9D2DD-601D-4957-888C-96F5154F751E_enhanced.png",
-    "サクラ": "F0D33901-6A6F-42B3-ACC8-9D33606B2DE1_enhanced.png",
-    "ライム": "D33BA323-0F6B-471D-8BE0-B270826361B0_enhanced.png",
-    "花火": "22291B2F-363C-4336-A63B-98FA2A4EB481_enhanced.png",
-    "ブロック": "1239A389-4458-4F42-AA7B-DBA449C517D7_enhanced.png",
-    "丸": "B18578DF-AD1D-4405-B261-6A5F53A232C6_enhanced.png",
+    "クッキー": "assets/クッキー.png",
+    "サクラ": "assets/サクラ.png",
+    "ライム": "assets/ライム.png",
+    "花火": "assets/花火.png",
+    "ブロック": "assets/ブロック.png",
+    "丸": "assets/丸.png",
 }
 
 # マークごとの正解リスト（正解数3つ）
