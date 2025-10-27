@@ -1,0 +1,7 @@
+Group,Bucket,Pairs_differing_at_bucket,Share_of_pairs_in_group
+cross-class,"Cold-triangle {4,6,9}",15072,1.5
+cross-class,"Cross {3,5,7}",16320,1.624203821656051
+cross-class,"Warm-triangle {1,2,8}",15072,1.5
+same-class,"Cold-triangle {4,6,9}",8160,1.5246636771300448
+same-class,"Cross {3,5,7}",6912,1.2914798206278026
+same-class,"Warm-triangle {1,2,8}",8160,1.5246636771300448
