@@ -1,0 +1,193 @@
+user
+逆にいうと位置交換が1番多いのがCEFってことですか？
+
+また、裏返しの多さでは順位はどうなりますか？
+
+gpt-5
+はい、**「位置が動きやすい」上位3枚は F → E → C** でした。なので“CEFが多い”という直感は概ね合っています（厳密な順位は F＞E＞C）。数値は全435組を**ペア最適化（裏返し最小→同点なら交換最小）**で比較した結果です。
+
+# 位置交換（動く頻度）の上位
+
+* **F（ライム–ブロッコ）**…**75.6%**
+* **E（花火–ブロッコ）**…**75.4%**
+* **C（丸–桜）**…**74.0%**
+  （次点：β 72.9%、B 72.4%、α 71.9%、D 71.3%、γ 70.6%、A 70.6%）
+  ※つまり「寒三角（D,E,F）が全部飛び抜けて動く」わけではなく、**F・Eは最上位だがDは中位**。**Cも上位**に入ります。
+
+# 裏返し（めくり）の多さ・順位
+
+（多い→少ない）
+
+1. **γ（丸–ブロッコ）**…**38.4%**
+2. **α（クッキー–花火）**…**31.3%**
+3. **β（ライム–桜）**…**27.4%**
+4. **B（クッキー–桜）**…**26.9%**
+5. **E（花火–ブロッコ）**…**26.0%**
+6. **D（ライム–花火）**…**24.8%**
+7. **A（丸–クッキー）**…**23.0%**
+8. **C（丸–桜）**…**20.7%**
+9. **F（ライム–ブロッコ）**…**18.6%**
+
+ポイント：**裏返しはクロス3枚（γ, α, β）が上位を独占**。一方で**F/Cは裏返し少なめ**だけど**位置はよく動く**、という性格の違いが出ています。
+
+user
+結論をまとめてください
+
+gpt-5
+了解。ここまでの“実機30題”の分析からの**結論だけ**をギュッとまとめます。
+
+## 結論（要点）
+
+* **評価方法**：各ペア（30C2=435）を、**裏返し最小 → 同点なら位置交換最小**で最適化して比較。辞書順の正規化に依存しない“実操作ベース”。
+* **位置が動きやすいカード**：**F > E > C**（次いで β, B, α, D, γ, A）。
+  → とくに **F・E・C** は“位置交換の起点になりがち”。
+* **裏返しが多いカード**：**γ > α > β > B > E > D > A > C > F**。
+  → **クロス（γ, α, β）**が上位で、**F/C はめくり少なめ**＝“向きは安定”。
+* **よく起こる2枚入れ替え（例）**：**E–β**, **A–D**, **C–F**, **α–β** などが多め。
+  → 寒側（D,E,F）とクロス（α,β,γ）の絡み、**C–F**も頻出。
+* **記憶戦略（位置アンカー）**：
+
+  * 覚えるなら **A と γ** がコスパ良い（次点 **D**）。
+  * **1枚**ならA、**2枚**ならA+γで十分“基準点”になり、交換手順が短くなる。
+  * 3枚（A+γ+D）まで覚えられるなら理想だが、人間の負荷的には**1〜2枚**が現実的。
+* **一意性について**：マークだけでは各題で**32/40/48通り**の割当が成立し**一意ではない**。
+  → 傾向把握には**ペア最適化**で「裏返し＋交換」を同時最小化するのが妥当。
+* **全体像**：理論上の176有効パターンは“9ビット対称”だが、**実機30題は偏りあり**（＝制作側の選題に癖）。
+
+---
+
+要するに、**「位置は F/E/C が動きやすい」「裏返しは γ/α/β が多い」**。
+**覚えるなら A（＋γ）**をアンカーにして、**クロスの向き**から素早く充填→残りを交換で寄せる、が一番効きます。
+
+user
+それとは別で結論を得るまでに使ったデータと、それの使い方もまとめてください
+
+gpt-5
+了解。結論に至るまでに**使ったデータ**と**その使い方（処理手順・指標）**を、簡潔にまとめます。
+
+# 使ったデータ
+
+1. **512_Patterns_of_Nine_Tile.csv**（512×9 の0/1）
+
+* 各列=カード（A..γ）の**表裏ビット**。
+* ビット定義：
+  A: 丸–クッキー, B: クッキー–桜, C: 丸–桜, D: ライム–花火, E: 花火–ブロッコ, F: ライム–ブロッコ, α: クッキー–花火, β: ライム–桜, γ: 丸–ブロッコ（0=左のマーク、1=右のマーク）
+
+2. **実機30題（あなたが提供）**
+
+* 各行=9マスの**マークのみ**（6進）：
+  0丸,1クッキー,2桜,3ライム,4花火,5ブロッコ
+* ファイル化：
+
+  * [device_30_patterns_codes.csv](sandbox:/mnt/data/device_30_patterns_codes.csv)
+  * [device_30_patterns_marks.csv](sandbox:/mnt/data/device_30_patterns_marks.csv)
+
+# どう使ったか（処理パイプライン）
+
+## A. 前処理（全体共通）
+
+* 512表から、**“有効176”**（＝どのマークもちょうど3枚にならない）を抽出。
+  出力：
+
+  * [ninetiles_valid_176_patterns.csv](sandbox:/mnt/data/ninetiles_valid_176_patterns.csv)
+
+* 「暖:寒」比（4:5 / 5:4 / 3:6 / 6:3）は**クロス3枚（γ,β,α）の向き**だけで決定するので、その分類も併せて付与。
+  出力（集計・比較用）：
+
+  * [ninetiles_176_class_counts.csv](sandbox:/mnt/data/ninetiles_176_class_counts.csv)
+  * [ninetiles_176_flip_by_bit_stratified.csv](sandbox:/mnt/data/ninetiles_176_flip_by_bit_stratified.csv)
+  * [ninetiles_176_flip_by_bucket_stratified.csv](sandbox:/mnt/data/ninetiles_176_flip_by_bucket_stratified.csv)
+
+## B. 実機30題の「代表割当て」（補助ルート）
+
+> マークだけだとカード割当てが**一意にならない**ため（各題で 32/40/48 通りの完全割当てが存在）、「カード別傾向」を一貫比較するための**暫定代表**を作成。
+> ただし**最終結論は C の“ペア最適化”**に基づいています。
+
+* 手順：
+  ① 実機1題の**マーク個数（6種のカウント）**と一致する512行を列挙
+  ② その中で**有効176**を優先 → **ビット列の辞書順最小**を代表に採用
+
+* 出力：
+
+  * 各題の**代表ビット列**（A..γ順）：[device30_canonical_bits.csv](sandbox:/mnt/data/device30_canonical_bits.csv)
+  * 512行との対応・候補数：[device30_to_512_canonical_mapping.csv](sandbox:/mnt/data/device30_to_512_canonical_mapping.csv)
+  * 各題の**割当てが一意でない**ことの確認：
+
+    * 件数まとめ：[device30_unique_counts.csv](sandbox:/mnt/data/device30_unique_counts.csv)
+    * 代表割当て（カード→位置・表裏）：[device30_repr_assignment.csv](sandbox:/mnt/data/device30_repr_assignment.csv)
+
+* 代表割当てを使った参考統計（のちに C で置換）：
+
+  * カード別 反転・移動や2サイクル頻度 等
+    （[device30_per_card_movement_flip.csv](sandbox:/mnt/data/device30_per_card_movement_flip.csv) ほか）
+
+## C. **ペア最適化（結論の根拠。辞書順に依存しない）**
+
+> **各ペア（A題,B題）ごと**に、**カード割当て・表裏・位置交換**を**同時に最適化**。
+> 目的関数：**① 裏返し枚数を最小 → ② 同点の中で位置交換枚数を最小**。
+
+* 具体：
+
+  * 各カード c∈{A..γ} について、A側/B側それぞれ「どの位置でどの面なら見えているマークを実現できるか」を列挙。
+  * 9カード×A/B位置の**二部マッチング**を全探索（強い枝刈り）し、上の目的関数で**最小解**を採用。
+  * **交換枚数**は、A配置→B配置の**置換のサイクル分解**から計算：
+    **最小転置数 = 9 − (#サイクル数)**
+
+* ここから導いた**カード別の“動きやすさ（位置交換）”と“裏返しの多さ”**が最終の結論。
+  出力：
+
+  * **カード別 移動/裏返し**：[optimal_per_card_movement_flip.csv](sandbox:/mnt/data/optimal_per_card_movement_flip.csv)
+  * **2枚入れ替えの頻度**：[optimal_pairwise_swaps.csv](sandbox:/mnt/data/optimal_pairwise_swaps.csv)
+  * **置換のサイクル長ヒスト**：[optimal_cycle_hist.csv](sandbox:/mnt/data/optimal_cycle_hist.csv)
+
+# 指標の定義（計算方法）
+
+* **裏返し枚数**：各カードの A面/B面が同じなら0、違えば1。ペアで合計し最小化。
+* **位置交換（移動）**：カード c の位置 posA(c) と posB(c) が異なるかどうか。
+* **交換コスト**：A→B の置換の最小転置数 = **9 − サイクル数**（サイクル分解）。
+* **2枚入れ替え**：置換の2サイクル（(x y)）のカウント。
+* **頻度（％）**：全435ペアに対する割合。
+
+# まとめ（使い分け）
+
+* **結論は C の“ペア最適化”**から導出（辞書順ルールに依存しない、実操作ベース）。
+* **B の代表割当て**は、“カード別”比較のための**補助**（一意でない問題を回避する便法）。
+* **A の176分析**は、全体の対称性やクラス分布の**ベンチマーク**として利用。
+
+---
+
+## 主要ファイル一覧（ダウンロード）
+
+* 176関連：
+  [ninetiles_valid_176_patterns.csv](sandbox:/mnt/data/ninetiles_valid_176_patterns.csv) /
+  [ninetiles_176_class_counts.csv](sandbox:/mnt/data/ninetiles_176_class_counts.csv) /
+  [ninetiles_176_flip_by_bit_stratified.csv](sandbox:/mnt/data/ninetiles_176_flip_by_bit_stratified.csv) /
+  [ninetiles_176_flip_by_bucket_stratified.csv](sandbox:/mnt/data/ninetiles_176_flip_by_bucket_stratified.csv)
+* 実機30（入力の整形）：
+  [device_30_patterns_codes.csv](sandbox:/mnt/data/device_30_patterns_codes.csv) /
+  [device_30_patterns_marks.csv](sandbox:/mnt/data/device_30_patterns_marks.csv)
+* 実機30（代表ルート・参考）：
+  [device30_to_512_canonical_mapping.csv](sandbox:/mnt/data/device30_to_512_canonical_mapping.csv) /
+  [device30_canonical_bits.csv](sandbox:/mnt/data/device30_canonical_bits.csv) /
+  [device30_unique_counts.csv](sandbox:/mnt/data/device30_unique_counts.csv) /
+  [device30_repr_assignment.csv](sandbox:/mnt/data/device30_repr_assignment.csv) /
+  [device30_per_card_movement_flip.csv](sandbox:/mnt/data/device30_per_card_movement_flip.csv) /
+  [device30_pairwise_swaps.csv](sandbox:/mnt/data/device30_pairwise_swaps.csv) /
+  [device30_cycle_hist.csv](sandbox:/mnt/data/device30_cycle_hist.csv) /
+  [device30_dest_pref.csv](sandbox:/mnt/data/device30_dest_pref.csv)
+* 実機30（**ペア最適化＝結論の根拠**）：
+  [optimal_per_card_movement_flip.csv](sandbox:/mnt/data/optimal_per_card_movement_flip.csv) /
+  [optimal_pairwise_swaps.csv](sandbox:/mnt/data/optimal_pairwise_swaps.csv) /
+  [optimal_cycle_hist.csv](sandbox:/mnt/data/optimal_cycle_hist.csv)
+
+---
+
+### 限界と仮定
+
+* 実機は**マークのみ可視**なので、カードIDの割当ては**本質的に複数解**。
+* そこで最終比較は、**各ペアごとに“裏返し→交換”を同時最適**することで、**位置情報を捨てず**に傾向を抽出。
+* もし“プレイ上の運用規則（例：クロス優先の充填順）”に合わせた**別の最適化規範**があれば、それに差し替えて同様に再計算可能です。
+
+
+**主要ファイルはgithubリポジトリに保存されています。
+
