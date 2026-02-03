@@ -1,0 +1,18 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <path id="citrus-slice" d="M 56.28 52.60 L 84.50 52.60 A 34.6 34.6 0 0 1 76.24 72.56 Z" />
+  </defs>
+
+  <g fill="#4CD964">
+    <use href="#citrus-slice" transform="rotate(0 50 50)" />
+    <use href="#citrus-slice" transform="rotate(45 50 50)" />
+    <use href="#citrus-slice" transform="rotate(90 50 50)" />
+    <use href="#citrus-slice" transform="rotate(135 50 50)" />
+    <use href="#citrus-slice" transform="rotate(180 50 50)" />
+    <use href="#citrus-slice" transform="rotate(225 50 50)" />
+    <use href="#citrus-slice" transform="rotate(270 50 50)" />
+    <use href="#citrus-slice" transform="rotate(315 50 50)" />
+  </g>
+
+  <circle cx="50" cy="50" r="42.4" fill="none" stroke="#4CD964" stroke-width="5.2" />
+</svg>
