@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nine Tile Swap Visualizer</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div class="grids">
+        <div class="grid-col">
+          <div class="title">Initial</div>
+          <div class="grid" id="grid-left"></div>
+        </div>
+        <div class="grid-col">
+          <div class="title">Step</div>
+          <div class="grid" id="grid-mid"></div>
+        </div>
+        <div class="grid-col">
+          <div class="title">Target</div>
+          <div class="grid" id="grid-right"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="resetBtn">Reset</button>
+        <button id="stepBtn">Step</button>
+        <button id="loadBtn">Load CSV</button>
+        <input id="csvInput" type="file" accept=".csv" hidden />
+        <div id="info" class="info">swap: 0 | step: 0/0</div>
+      </div>
+
+      <div id="status" class="status">Loading patterns...</div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
