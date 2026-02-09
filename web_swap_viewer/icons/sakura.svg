@@ -1,0 +1,22 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <path id="half-petal" d="
+      M 50,50
+      C 42.5,48 35,38 35,21
+      C 35,10 43.5,5 50,5
+      Z
+    " />
+
+    <g id="petal">
+      <use href="#half-petal" />
+      <use href="#half-petal" transform="translate(100, 0) scale(-1, 1)" />
+    </g>
+  </defs>
+
+  <g fill="#FF4081">
+    <use href="#petal" transform="rotate(0 50 50)" />
+    <use href="#petal" transform="rotate(90 50 50)" />
+    <use href="#petal" transform="rotate(180 50 50)" />
+    <use href="#petal" transform="rotate(270 50 50)" />
+  </g>
+</svg>
