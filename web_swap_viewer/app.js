@@ -163,38 +163,21 @@ function minSwapsCount(start, target) {
   return start.length - cycles;
 }
 
-function computeSwapSteps(start, target) {
-  const targetIndex = new Map();
-  target.forEach((card, idx) => targetIndex.set(card, idx));
-  const perm = start.map((card) => targetIndex.get(card));
-  if (perm.some((v) => v === undefined)) {
-    throw new Error("Invalid target mapping");
-  }
-
-  const visited = Array(start.length).fill(false);
+function computeSwaps(start, target) {
   const cur = start.slice();
-  const swapOps = [];
-  const states = [cur.slice()];
-
-  for (let i = 0; i < perm.length; i += 1) {
-    if (visited[i]) continue;
-    let j = i;
-    const cycle = [];
-    while (!visited[j]) {
-      visited[j] = true;
-      cycle.push(j);
-      j = perm[j];
-    }
-    if (cycle.length <= 1) continue;
-    for (let k = cycle.length - 1; k >= 1; k -= 1) {
-      const a = cycle[0];
-      const b = cycle[k];
-      swapOps.push([a, b]);
-      [cur[a], cur[b]] = [cur[b], cur[a]];
-      states.push(cur.slice());
-    }
+  const posOfCard = new Map();
+  cur.forEach((card, idx) => posOfCard.set(card, idx));
+  const swaps = [];
+  for (let i = 0; i < cur.length; i += 1) {
+    const desired = target[i];
+    if (cur[i] === desired) continue;
+    const j = posOfCard.get(desired);
+    swaps.push([i, j]);
+    [cur[i], cur[j]] = [cur[j], cur[i]];
+    posOfCard.set(cur[i], i);
+    posOfCard.set(cur[j], j);
   }
-  return { swapOps, states };
+  return swaps;
 }
 
 function findTargetArrangement(startPos, targetMarks) {
@@ -244,9 +227,14 @@ function resetState() {
   const result = findTargetArrangement(state.initialPos, state.targetMarks);
   state.targetPos = result.targetPos;
   state.cardMark = result.cardMark;
-  const steps = computeSwapSteps(state.initialPos, state.targetPos);
-  state.swapOps = steps.swapOps;
-  state.states = steps.states;
+  state.swapOps = computeSwaps(state.initialPos, state.targetPos);
+  state.states = [state.initialPos.slice()];
+  let cur = state.initialPos.slice();
+  for (const [a, b] of state.swapOps) {
+    cur = cur.slice();
+    [cur[a], cur[b]] = [cur[b], cur[a]];
+    state.states.push(cur);
+  }
   state.stepIndex = 0;
   updateViews();
 }
